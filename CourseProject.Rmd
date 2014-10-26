@@ -1,0 +1,231 @@
+---
+title: "Regression Models - Course Project"
+output: pdf_document
+---
+# Executive Summary
+
+This study aims to explore the relationship between a set of variables and miles per gallon (MPG) outcome. We are particularly interested in knowing which transmission (automatic or manual) is better for MPG, quantitatively speaking. Starting from the model in which MPG is a function of transmission, covariates were tested and the most significant ones (hp and weight) were included. The resulting model explains 82% of total variation. In this context, manual transmission showed better fuel consumption performance.
+
+# Exploratory Data Analyses
+
+Based on documentation, the **mtcars** dataset has 32 observations on 11 variables. It comprises fuel consumption and 10 aspects of automobile design and performance for 32 automobiles (1973-74 models). The first thing that we might want is to use all these variables to predict fuel consumption (mpg: Miles/(US) gallon). Nevertheless, the summary of adjusted estimates (Table 1) shows that t-tests are not significant (adj.p > .05). In order to improve understanding, marginal estimates were also determined.
+
+\begin{center}
+\textbf{Table 1 - Adjusted and marginal estimates relative to mpg.}
+\end{center}
+
+```{r echo=FALSE}
+data(mtcars)
+# t-tests are not significant for adjusted estimates 
+df1 <- summary(lm(mpg ~ ., data = mtcars))$coef
+df1 <- data.frame(df1[1:11,c(1,3,4)])
+
+# marginal estimates (the one that disregards all the other coefficients)
+df2 <- matrix(c(
+        summary(lm(mpg ~ cyl, data = mtcars))$coef[c(2,6,8)],
+        summary(lm(mpg ~ cyl, data = mtcars))$adj.r.squared,
+        summary(lm(mpg ~ disp, data = mtcars))$coef[c(2,6,8)],
+        summary(lm(mpg ~ disp, data = mtcars))$adj.r.squared,
+        summary(lm(mpg ~ hp, data = mtcars))$coef[c(2,6,8)],
+        summary(lm(mpg ~ hp, data = mtcars))$adj.r.squared,
+        summary(lm(mpg ~ drat, data = mtcars))$coef[c(2,6,8)],
+        summary(lm(mpg ~ drat, data = mtcars))$adj.r.squared,
+        summary(lm(mpg ~ wt, data = mtcars))$coef[c(2,6,8)],
+        summary(lm(mpg ~ wt, data = mtcars))$adj.r.squared,
+        summary(lm(mpg ~ qsec, data = mtcars))$coef[c(2,6,8)],
+        summary(lm(mpg ~ qsec, data = mtcars))$adj.r.squared,
+        summary(lm(mpg ~ vs, data = mtcars))$coef[c(2,6,8)],
+        summary(lm(mpg ~ vs, data = mtcars))$adj.r.squared,
+        summary(lm(mpg ~ as.factor(am), data = mtcars))$coef[c(2,6,8)],
+        summary(lm(mpg ~ as.factor(am), data = mtcars))$adj.r.squared,
+        summary(lm(mpg ~ gear, data = mtcars))$coef[c(2,6,8)],
+        summary(lm(mpg ~ gear, data = mtcars))$adj.r.squared,
+        summary(lm(mpg ~ carb, data = mtcars))$coef[c(2,6,8)],
+        summary(lm(mpg ~ carb, data = mtcars))$adj.r.squared
+        ) , nrow = 10, ncol = 4, byrow = TRUE)
+
+df2 <- data.frame(df2)
+rownames(df2) <- rownames(df1)[2:11]
+
+df <- merge(df1,df2,by = "row.names", sort = TRUE, all.x = TRUE)
+names(df) <- c("variable","adj.estimate","adj.t","adj.p","marg.estimate","marg.t","marg.p","adj.r.squared")
+```
+
+\begin{center}
+```{r echo=FALSE, results='asis'}
+library(knitr)
+kable(df,format="latex", digits = c(0,4,4,4,4,4,15,4))
+```
+\end{center}
+
+Marginal estimates have significant t-tests (marg.p < .05). A first approach should focus on the issues to be addressed, which are related to the discrete factor variable **am** (0 - automatic, 1 - manual). So, let's start by looking at the basic behavior of **mpg** as a function of **am** (see Figure 1 in Appendix).
+
+# Model Selection
+
+An intuitive analysis of Figure 1 suggests that vehicles with manual transmission have the potential to maximize gas mileage. Technically speaking, the estimated expected increase in **mpg** comparing manual to automatic is **7.2449** (Table 1) and this difference is statistically signicant (p = 0.00028502). However, the adjusted R-squared (Table 1) shows that only about 34% of total variation is explained by this model (mpg ~ am). Hence, covariate adjustment is needed for robustness (discrete variables were coerced to factors).
+
+The approach for adding covariates was to (1) individually include the other variables to the basic model, (2) comparatively test each new nested model by ANOVA, (3) definitely include the most significant variable into the model, and (4) repeat this procedure to each new model until there was no more significant t-test. Table 2 shows that the final model (mpg ~ am + hp + wt) was found after three iteractions.
+
+```{r echo=FALSE}
+# coercing factor variables
+mtcars$cyl <- as.factor(mtcars$cyl)
+mtcars$vs <- as.factor(mtcars$vs)
+mtcars$am <- as.factor(mtcars$am)
+mtcars$gear <- as.factor(mtcars$gear)
+mtcars$carb <- as.factor(mtcars$carb)
+
+# model 1 lm(mpg ~ am) tested with all the other variables
+v <- NULL
+vn <- NULL
+fit1 <- lm(mpg ~ am, data = mtcars)
+for(i in 2:ncol(mtcars)){
+    fit2 <- update(fit1, mpg ~ am + mtcars[[i]])
+    a<-anova(fit1, fit2)
+    v<-c(v,a[[6]][2],summary(fit2)$adj.r.squared)
+    vn <- c(vn,colnames(mtcars)[i])
+}
+v <- matrix(v,ncol=2,byrow=TRUE)
+m1v <- data.frame(variable=vn,p.value=v[,1], r.squared=v[,2])
+
+# model 2 lm(mpg ~ am + hp) tested with all the other variables
+v <- NULL
+vn <- NULL
+fit1 <- lm(mpg ~ am + hp, data = mtcars)
+for(i in 2:ncol(mtcars)){
+    fit2 <- update(fit1, mpg ~ am + hp + mtcars[[i]])
+    a<-anova(fit1, fit2)
+    v<-c(v,a[[6]][2],summary(fit2)$adj.r.squared)
+    vn <- c(vn,colnames(mtcars)[i])
+}
+v <- matrix(v,ncol=2,byrow=TRUE)
+m2v <- data.frame(variable=vn,p.value=v[,1], r.squared=v[,2])
+
+# model 3 lm(mpg ~ am + hp + wt) tested with all the other variables
+v <- NULL
+vn <- NULL
+fit1 <- lm(mpg ~ am + hp + wt, data = mtcars)
+for(i in 2:ncol(mtcars)){
+    fit2 <- update(fit1, mpg ~ am + hp + wt + mtcars[[i]])
+    a<-anova(fit1, fit2)
+    v<-c(v,a[[6]][2],summary(fit2)$adj.r.squared)
+    vn <- c(vn,colnames(mtcars)[i])
+}
+v <- matrix(v,ncol=2,byrow=TRUE)
+m3v <- data.frame(variable=vn,p.value=v[,1], r.squared=v[,2])
+
+fm <- cbind(m1v,m2v[,2:3],m3v[,2:3])
+```
+
+\begin{center}
+    \textbf{Table 2 - Iteractive approach for including covariates.}
+\end{center}
+\begin{center}
+    \begin{tabular}{ p{13.8cm} }
+        \begin{tabular}{ p{1.205cm} | p{3.875cm} | p{3.79cm} | p{3.7cm}}
+           \hline
+           mpg {\textasciitilde} am
+           & Model 1: mpg {\textasciitilde} am + variable 
+           & Model 2: mpg {\textasciitilde} am + hp + variable
+           & Model 3: mpg {\textasciitilde} am + hp + wt + variable 
+        \end{tabular}
+        \\
+```{r echo=FALSE}
+    kable(fm,format="latex",digits=15)
+```
+    \end{tabular}
+\end{center}
+
+Below we have the summary of our best fit model. We also examine the model **mpg ~ hp + wt** controlled by **am** for comparative analysis. Figure 2 (see Appendix) shows the plot for residual checking and diagnostics.
+
+```{r echo=FALSE}
+paste("best fit model: mpg ~ am + hp + wt    adj.R-squared:",round(summary(lm(mpg ~ am + hp + wt, data=mtcars))$adj.r.squared,3))
+summary(lm(mpg ~ am + hp + wt, data=mtcars))$coef
+paste("controlled model: mpg ~ am:hp + am:wt    adj.R-squared:",round(summary(lm(mpg ~ am:hp + am:wt, data=mtcars))$adj.r.squared,3))
+summary(lm(mpg ~ am:hp + am:wt, data=mtcars))$coef
+```
+
+#Discussion
+
+The best fit model (BFM) captured 82.3% of total variance. Looking at the coefficents of BFM, we can see that the estimated expected increase in MPG comparing manual to automatic is **2.0837**. However, this difference is not statistically significant (p = 0.1412). In order to better understand this phenomenon, the controlled model (CM) was also considered. The CM coefficients are statistically significant and show that the increase of 1 HP results in MPG decreases of 0.039 miles for automatic cars and 0.033 miles for manual cars, which suggests better performance for manual transmission (about 16% better). Moreover, as weight increases 1000 lbs, MPG decreases 3.368 miles for automatic cars and 3.296 miles for manual cars, which favors manual transmissions again, but with a slight difference (about 2%). The Figure 3 shows that the group status **am** does not reverse the influence of **hp** but practically equalizes the effect of **wt**. The residual plot (Figure 2) does not reveal a pattern but shows the strong influence of three vehicles on the model, which is reflected in QQ Plot where standardized residuals don't seem to be normal. This fact deserves special treatment in future studies. In conclusion, this study suggests that manual transmition has better fuel consumption performance, considered the model limitations.
+
+P.S.: The markdown file used to generate this report can be found in https://github.com/Fpschwartz1/RegressionModels/CourseProject.Rmd
+
+# Appendix
+
+\begin{center}
+    \textbf{Figure 1 - Linear model for mpg \textasciitilde{} am}
+\end{center}
+
+```{r fig.width=8, fig.height=4, echo=FALSE}
+data(mtcars)
+par(mfrow=c(1,2))
+plot(mtcars$mpg ~ as.factor(mtcars$am), xlab="transmission: (0) automatic, (1) manual", ylab="mpg (Miles/(US) gallon)", main="(a) Boxplot")
+fit <- lm(mpg ~ as.factor(am), data = mtcars)
+plot(mtcars$mpg ~ mtcars$am, main="(b) mpg ~ am", xlab="transmission", ylab="mpg")
+abline(coef(fit), lwd = 2)
+text(0.15,12,paste("Adjusted R-squared = ",round(summary(fit)$adj.r.squared,3)),adj = c(0,0), cex = .8)
+
+```
+
+\newpage
+\begin{center}
+    \textbf{Figure 2 - Residual plot for the best fit model}
+\end{center}
+
+```{r fig.width=8, fig.height=8, echo=FALSE}
+par(mfrow = c(2,2))
+plot(lm(mpg ~ am:hp + am:wt, data=mtcars))
+```
+
+\newpage
+\begin{center}
+    \textbf{Figure 3 - Marginal plots}
+\end{center}
+
+```{r echo=FALSE}
+t <- as.factor(mtcars$am)
+
+lx1 <- "hp"
+x1 <- mtcars$hp
+y <- mtcars$mpg
+fit1 <- lm(y ~ x1)
+fit2 <- lm(y ~ x1 + t)
+
+lx2 <- "wt"
+x2 <- mtcars$wt
+y <- mtcars$mpg
+fit3 <- lm(y ~ x2)
+fit4 <- lm(y ~ x2 + t)
+```
+
+
+```{r fig.width=10, fig.height=5, echo=FALSE}
+par(mfrow=c(1,2))
+
+plot(y ~ x1, type = "n", xlab=lx1, ylab="mpg")
+# disregarding x - marginal associations (regarding x - adjusted associations, holding x constant)
+abline(h = mean(y[mtcars$am == 0]), col = "lightblue", lwd = 3) # automatic
+abline(h = mean(y[mtcars$am == 1]), col = "salmon", lwd = 3) # manual
+# disregarding group of status
+abline(coef(fit1), lwd = 2)
+# the treatment effect (group status) does not reverses itelf, it is not related to X
+abline(coef(fit2)[1], coef(fit2)[2], col = "lightblue", lwd = 3)
+abline(coef(fit2)[1] + coef(fit2)[3], coef(fit2)[2], col = "salmon", lwd = 3)
+points(x1[mtcars$am == 0], y[mtcars$am == 0], pch = 21, col = "black", bg = "lightblue", cex = 1.5)
+points(x1[mtcars$am == 1], y[mtcars$am == 1], pch = 21, col = "black", bg = "salmon", cex = 1.5)
+legend("topright", c("Automatic","Manual"), fill=c("lightblue","salmon"))
+
+plot(y ~ x2, type = "n", xlab=lx2, ylab="mpg")
+# disregarding x - marginal associations (regarding x - adjusted associations, holding x constant)
+abline(h = mean(y[mtcars$am == 0]), col = "lightblue", lwd = 3) # automatic
+abline(h = mean(y[mtcars$am == 1]), col = "salmon", lwd = 3) # manual
+# disregarding group of status
+abline(coef(fit3), lwd = 2)
+# the treatment effect (group status) does not reverses itelf, it is not related to X
+abline(coef(fit4)[1], coef(fit4)[2], col = "lightblue", lwd = 3)
+abline(coef(fit4)[1] + coef(fit4)[3], coef(fit4)[2], col = "salmon", lwd = 3)
+points(x2[mtcars$am == 0], y[mtcars$am == 0], pch = 21, col = "black", bg = "lightblue", cex = 1.5)
+points(x2[mtcars$am == 1], y[mtcars$am == 1], pch = 21, col = "black", bg = "salmon", cex = 1.5)
+legend("topright", c("Automatic","Manual"), fill=c("lightblue","salmon"))
+```
+
