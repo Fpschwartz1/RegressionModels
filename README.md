@@ -1,4 +1,4 @@
-RegressionModel
-===============
+RegressionModels
+================
 
-Repository for the files of Regression Model Course Project 
+Repository for the files of Regression Models Course Project 
