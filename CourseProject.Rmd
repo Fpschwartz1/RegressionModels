@@ -148,7 +148,7 @@ summary(lm(mpg ~ am:hp + am:wt, data=mtcars))$coef
 
 The best fit model (BFM) captured 82.3% of total variance. Looking at the coefficents of BFM, we can see that the estimated expected increase in MPG comparing manual to automatic is **2.0837**. However, this difference is not statistically significant (p = 0.1412). In order to better understand this phenomenon, the controlled model (CM) was also considered. The CM coefficients are statistically significant and show that the increase of 1 HP results in MPG decreases of 0.039 miles for automatic cars and 0.033 miles for manual cars, which suggests better performance for manual transmission (about 16% better). Moreover, as weight increases 1000 lbs, MPG decreases 3.368 miles for automatic cars and 3.296 miles for manual cars, which favors manual transmissions again, but with a slight difference (about 2%). The Figure 3 shows that the group status **am** does not reverse the influence of **hp** but practically equalizes the effect of **wt**. The residual plot (Figure 2) does not reveal a pattern but shows the strong influence of three vehicles on the model, which is reflected in QQ Plot where standardized residuals don't seem to be normal. This fact deserves special treatment in future studies. In conclusion, this study suggests that manual transmition has better fuel consumption performance, considered the model limitations.
 
-P.S.: The markdown file used to generate this report can be found in https://github.com/Fpschwartz1/RegressionModels/CourseProject.Rmd
+P.S.: The markdown file used to generate this report can be found in https://github.com/Fpschwartz1/RegressionModels/blob/master/CourseProject.Rmd
 
 # Appendix
 
